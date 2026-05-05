@@ -5,26 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>711bc Audio Converter</title>
     
-    <!-- Library Eksternal (Hanya yang paling ringan) -->
+    <!-- Library Eksternal -->
     <script src="https://unpkg.com/wavesurfer.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     
     <style>
         :root {
-            /* Tema Gelap & Gradasi */
-            --bg-gradient: linear-gradient(135deg, #090e17 0%, #162032 100%);
+            var(--bg-gradient): linear-gradient(135deg, #090e17 0%, #162032 100%);
             --glass-bg: rgba(30, 41, 59, 0.6);
             --glass-border: rgba(255, 255, 255, 0.08);
             --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
             --accent-color: #8b5cf6;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --danger: #ef4444;
         }
 
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg-gradient);
+            background: linear-gradient(135deg, #090e17 0%, #162032 100%);
             color: var(--text-main);
             margin: 0;
             padding: 20px;
@@ -45,107 +43,61 @@
             max-width: 800px;
             padding: 40px;
             box-sizing: border-box;
-            transition: all 0.3s ease;
         }
 
         .header { text-align: center; margin-bottom: 35px; }
         
         .header h1 { 
-            margin: 0; 
-            font-size: 2.5rem; 
-            font-weight: 800; 
-            letter-spacing: -0.5px; 
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0px 4px 20px rgba(139, 92, 246, 0.2);
+            margin: 0; font-size: 2.5rem; font-weight: 800; letter-spacing: -0.5px; 
+            background: var(--accent-gradient); -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; text-shadow: 0px 4px 20px rgba(139, 92, 246, 0.2);
         }
-        .header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; letter-spacing: 0.5px; }
+        .header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; }
 
         .upload-area {
-            border: 2px dashed #334155;
-            border-radius: 16px;
-            padding: 45px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            border: 2px dashed #334155; border-radius: 16px; padding: 45px 20px;
+            text-align: center; cursor: pointer; transition: all 0.3s ease;
             background: rgba(15, 23, 42, 0.4);
         }
         .upload-area:hover { 
-            border-color: var(--accent-color); 
-            background: rgba(15, 23, 42, 0.8); 
+            border-color: var(--accent-color); background: rgba(15, 23, 42, 0.8); 
             box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
         }
         
         #editorArea { display: none; }
 
         .waveform-wrapper {
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 14px;
-            padding: 15px;
-            margin-bottom: 25px;
-            border: 1px solid var(--glass-border);
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+            background: rgba(15, 23, 42, 0.5); border-radius: 14px; padding: 15px;
+            margin-bottom: 25px; border: 1px solid var(--glass-border);
         }
 
         .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 25px;
-            margin-bottom: 35px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px; margin-bottom: 35px;
         }
 
         .control-item label { 
-            display: flex; justify-content: space-between; 
-            font-weight: 600; font-size: 0.9em; margin-bottom: 12px; 
-            color: #e2e8f0; 
+            display: flex; justify-content: space-between; font-weight: 600; 
+            font-size: 0.9em; margin-bottom: 12px; color: #e2e8f0; 
         }
         .control-item span { color: #a78bfa; font-weight: 700; }
         
         input[type="range"] {
-            width: 100%;
-            accent-color: var(--accent-color);
-            cursor: pointer;
-            height: 6px;
-            background: #334155;
-            border-radius: 5px;
-            outline: none;
+            width: 100%; accent-color: var(--accent-color); cursor: pointer;
+            height: 6px; background: #334155; border-radius: 5px; outline: none;
         }
 
         .action-buttons { display: flex; gap: 15px; }
         
         .btn {
-            flex: 1;
-            padding: 15px 20px;
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex; justify-content: center; align-items: center; gap: 8px;
-            letter-spacing: 0.5px;
+            flex: 1; padding: 15px 20px; border: none; border-radius: 12px;
+            font-weight: bold; font-size: 1rem; cursor: pointer; transition: all 0.3s ease;
         }
-        
-        .btn-play { 
-            background: #1e293b; 
-            color: var(--text-main); 
-            border: 1px solid #334155; 
-        }
+        .btn-play { background: #1e293b; color: var(--text-main); border: 1px solid #334155; }
         .btn-play:hover { background: #334155; transform: translateY(-2px); }
-        
-        .btn-export { 
-            background: var(--accent-gradient); 
-            color: white; 
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-        }
-        .btn-export:hover { 
-            filter: brightness(1.15); 
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
-            transform: translateY(-2px);
-        }
-        
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .btn-export { background: var(--accent-gradient); color: white; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
+        .btn-export:hover { filter: brightness(1.15); transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
         #statusMsg { text-align: center; margin-top: 20px; font-weight: 600; font-size: 0.95rem; }
     </style>
@@ -155,18 +107,18 @@
     <div class="studio-container">
         <div class="header">
             <h1>711bc Audio Converter</h1>
-            <p>Fast MP3 Bypass Engine • Single Track Editor</p>
+            <p>Chipmunk MP3 Bypass Engine • Anti-Crash System</p>
         </div>
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px; filter: drop-shadow(0px 0px 8px rgba(139,92,246,0.5));"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <h3 style="margin:0; color:#f8fafc; font-size: 1.2rem;">Pilih File Audio</h3>
-            <p style="margin:8px 0 0; color:#64748b; font-size:0.9em;">Klik area ini untuk memuat lagu ke dalam memori</p>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <h3 style="margin:0; color:#f8fafc;">Pilih File Audio</h3>
+            <p style="margin:8px 0 0; color:#64748b;">Klik area ini untuk memuat lagu</p>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
         </div>
 
         <div id="editorArea">
-            <h4 id="trackName" style="margin-top:0; color:#94a3b8; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight: 500;"></h4>
+            <h4 id="trackName" style="margin-top:0; color:#94a3b8; text-align:center; white-space:nowrap;"></h4>
             
             <div class="waveform-wrapper">
                 <div id="waveform"></div>
@@ -174,8 +126,8 @@
 
             <div class="controls-grid">
                 <div class="control-item">
-                    <label>Bypass Speed (Nada Otomatis Naik) <span id="valSpeed">2.30x</span></label>
-                    <input type="range" id="ctrlSpeed" min="0.5" max="2.3" step="0.01" value="2.3">
+                    <label>Bypass Speed (Chipmunk) <span id="valSpeed">2.30x</span></label>
+                    <input type="range" id="ctrlSpeed" min="0.5" max="3.0" step="0.01" value="2.3">
                 </div>
                 <div class="control-item">
                     <label>Volume Boost <span id="valVol">0 dB</span></label>
@@ -204,20 +156,12 @@
         
         const ctrlSpeed = document.getElementById('ctrlSpeed');
         const ctrlVol = document.getElementById('ctrlVol');
-        
         const btnPlay = document.getElementById('btnPlay');
         const btnExport = document.getElementById('btnExport');
 
-        // Wavesurfer dengan tema gelap
         wavesurfer = WaveSurfer.create({
-            container: '#waveform',
-            waveColor: '#475569',
-            progressColor: '#8b5cf6',
-            cursorColor: '#f8fafc',
-            barWidth: 2,
-            barRadius: 2,
-            height: 80,
-            responsive: true
+            container: '#waveform', waveColor: '#475569', progressColor: '#8b5cf6',
+            cursorColor: '#f8fafc', barWidth: 2, height: 80, responsive: true
         });
 
         fileInput.addEventListener('change', (e) => {
@@ -226,28 +170,32 @@
 
             currentFile = file;
             trackName.innerText = "🎵 " + file.name;
-            
             uploadArea.style.display = 'none';
             editorArea.style.display = 'block';
 
             wavesurfer.loadBlob(file);
-            
             ctrlSpeed.value = 2.3; document.getElementById('valSpeed').innerText = '2.30x';
             ctrlVol.value = 0; document.getElementById('valVol').innerText = '0 dB';
             
             wavesurfer.on('ready', () => {
                 wavesurfer.setPlaybackRate(2.3);
                 wavesurfer.setVolume(1.0);
+                
+                // KUNCI CHIPMUNK: Mematikan fitur penjaga nada di browser
+                const media = wavesurfer.getMediaElement();
+                if (media) {
+                    media.preservesPitch = false; 
+                    media.mozPreservesPitch = false;
+                    media.webkitPreservesPitch = false;
+                }
             });
         });
 
         btnPlay.addEventListener('click', () => {
             if (wavesurfer.isPlaying()) {
-                wavesurfer.pause();
-                btnPlay.innerHTML = '▶ Play Preview';
+                wavesurfer.pause(); btnPlay.innerHTML = '▶ Play Preview';
             } else {
-                wavesurfer.play();
-                btnPlay.innerHTML = '⏸ Pause';
+                wavesurfer.play(); btnPlay.innerHTML = '⏸ Pause';
             }
         });
 
@@ -262,35 +210,28 @@
         ctrlVol.addEventListener('input', (e) => {
             const dbVal = parseInt(e.target.value);
             document.getElementById('valVol').innerText = dbVal > 0 ? '+' + dbVal + ' dB' : dbVal + ' dB';
-            const linearVol = Math.pow(10, dbVal / 20);
-            wavesurfer.setVolume(linearVol);
+            wavesurfer.setVolume(Math.pow(10, dbVal / 20));
         });
 
-        // --- SISTEM RENDER MURNI WEB AUDIO API (SANGAT RINGAN) ---
+        // --- SISTEM RENDER ANTI-CRASH (ASYNC YIELDING) ---
         btnExport.addEventListener('click', async () => {
             if (!currentFile) return;
-            
-            btnExport.disabled = true;
-            btnPlay.disabled = true;
-            wavesurfer.pause();
-            btnPlay.innerHTML = '▶ Play Preview';
+            btnExport.disabled = true; btnPlay.disabled = true; wavesurfer.pause();
 
             try {
-                statusMsg.style.color = '#60a5fa'; // Biru terang
-                statusMsg.innerText = "⏳ Memproses Audio Engine... (Tunggu sebentar)";
+                statusMsg.style.color = '#60a5fa'; 
+                statusMsg.innerText = "⏳ Sedang menyiapkan mesin audio...";
 
                 const speed = parseFloat(ctrlSpeed.value);
                 const volumeDb = parseInt(ctrlVol.value);
 
-                // 1. Decode Audio
+                // 1. Ekstrak Data Audio
                 const arrayBuffer = await currentFile.arrayBuffer();
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
 
-                // 2. Hitung durasi baru
+                // 2. Terapkan Kecepatan & Nada
                 const newDuration = decodedData.duration / speed;
-                
-                // 3. Render Offline menggunakan Web Audio murni
                 const offlineCtx = new OfflineAudioContext(
                     decodedData.numberOfChannels, 
                     Math.ceil(decodedData.sampleRate * newDuration), 
@@ -299,70 +240,71 @@
 
                 const source = offlineCtx.createBufferSource();
                 source.buffer = decodedData;
-                source.playbackRate.value = speed; // Ini mengubah kecepatan dan nada sekaligus
+                source.playbackRate.value = speed; // Otomatis Chipmunk
 
                 const gainNode = offlineCtx.createGain();
                 gainNode.gain.value = Math.pow(10, volumeDb / 20); 
 
-                source.connect(gainNode);
-                gainNode.connect(offlineCtx.destination);
+                source.connect(gainNode); gainNode.connect(offlineCtx.destination);
                 source.start(0);
 
+                statusMsg.innerText = "⏳ Sedang me-render efek audio...";
                 const renderedBuffer = await offlineCtx.startRendering();
-                audioCtx.close(); // Tutup agar memori tidak bocor
+                audioCtx.close(); 
                 
-                statusMsg.style.color = '#c084fc'; // Ungu terang
-                statusMsg.innerText = "📦 Mengkonversi ke format .MP3...";
-                await new Promise(r => setTimeout(r, 100)); // Beri napas ke UI
-
-                // 4. Encode ke MP3
-                const mp3Blob = encodeAudioBufferToMp3(renderedBuffer);
+                // 3. Encode MP3 bertahap (Anti-Crash)
+                statusMsg.style.color = '#c084fc'; 
+                const mp3Blob = await encodeAudioBufferToMp3Async(renderedBuffer, (percent) => {
+                    statusMsg.innerText = `📦 Mengompres ke MP3... ${percent}%`;
+                });
                 
+                // 4. Unduh File
                 const url = URL.createObjectURL(mp3Blob);
-                const a = document.createElement('a');
-                a.href = url;
+                const a = document.createElement('a'); a.href = url;
                 a.download = "711bc_" + currentFile.name.replace(/\.[^/.]+$/, "") + ".mp3";
                 a.click();
                 URL.revokeObjectURL(url);
 
-                statusMsg.style.color = '#34d399'; // Hijau terang
-                statusMsg.innerText = "✅ Selesai! File berhasil diunduh.";
+                statusMsg.style.color = '#34d399'; 
+                statusMsg.innerText = "✅ Selesai! Cek folder Download Anda.";
 
             } catch (error) {
                 console.error(error);
-                statusMsg.style.color = '#f87171'; // Merah terang
-                statusMsg.innerText = "❌ Terjadi kesalahan saat memproses file.";
+                statusMsg.style.color = '#f87171'; 
+                statusMsg.innerText = "❌ Gagal: " + (error.message || "Memori browser tidak kuat.");
             } finally {
-                btnExport.disabled = false;
-                btnPlay.disabled = false;
+                btnExport.disabled = false; btnPlay.disabled = false;
+                btnPlay.innerHTML = '▶ Play Preview';
             }
         });
 
-        function encodeAudioBufferToMp3(buffer) {
+        // MESIN ENCODER ANTI NGE-FREEZE
+        async function encodeAudioBufferToMp3Async(buffer, onProgress) {
             const channels = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
-            const kbps = 128; 
-            const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, kbps);
+            const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
             const mp3Data = [];
-
             const sampleBlockSize = 1152;
+            
             const leftData = buffer.getChannelData(0);
             const rightData = channels === 2 ? buffer.getChannelData(1) : leftData;
 
             const leftInt16 = new Int16Array(leftData.length);
             const rightInt16 = new Int16Array(rightData.length);
 
-            // Konversi Float32 ke Int16
+            // Tahap 1: Konversi Format
             for (let i = 0; i < leftData.length; i++) {
-                let leftSample = Math.max(-1, Math.min(1, leftData[i]));
-                leftInt16[i] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
+                let l = Math.max(-1, Math.min(1, leftData[i]));
+                leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
                 if(channels === 2) {
-                    let rightSample = Math.max(-1, Math.min(1, rightData[i]));
-                    rightInt16[i] = rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF;
+                    let r = Math.max(-1, Math.min(1, rightData[i]));
+                    rightInt16[i] = r < 0 ? r * 0x8000 : r * 0x7FFF;
                 }
+                // Istirahat setiap memproses 500ribu data agar RAM tidak penuh
+                if (i > 0 && i % 500000 === 0) await new Promise(res => setTimeout(res, 0));
             }
 
-            // Encode per blok
+            // Tahap 2: Kompresi ke MP3
             for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
                 const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
                 let mp3buf;
@@ -373,6 +315,13 @@
                     mp3buf = mp3encoder.encodeBuffer(leftChunk);
                 }
                 if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                
+                // Update persentase dan istirahat setiap 100 putaran
+                if (i > 0 && i % (sampleBlockSize * 100) === 0) {
+                    let percent = Math.round((i / leftInt16.length) * 100);
+                    onProgress(percent);
+                    await new Promise(res => setTimeout(res, 0)); 
+                }
             }
 
             const mp3buf = mp3encoder.flush();
