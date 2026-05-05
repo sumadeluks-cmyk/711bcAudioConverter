@@ -32,7 +32,6 @@
             min-height: 100vh;
         }
 
-        /* White Frosted Glass Aesthetics */
         header, .audio-card {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -112,7 +111,6 @@
         <div class="subtitle">Batch Processor (Max 10 Files) - Speed, Pitch, & dB Gain</div>
 
         <div class="master-controls">
-            <!-- Speed maksimal diubah menjadi 2.3 -->
             <div class="control-item">
                 <label>Speed: <span id="mSpeedLabel">1.0</span>x</label>
                 <input type="range" id="masterSpeed" min="0.5" max="2.3" step="0.01" value="1.0">
@@ -121,7 +119,6 @@
                 <label>Pitch (Nada): <span id="mPitchLabel">0</span></label>
                 <input type="range" id="masterPitch" min="-12" max="12" step="1" value="0">
             </div>
-            <!-- Volume diubah ke format dB -->
             <div class="control-item">
                 <label>Gain: <span id="mVolLabel">0 dB</span></label>
                 <input type="range" id="masterVol" min="-40" max="15" step="1" value="0">
@@ -137,7 +134,6 @@
     </header>
 
     <div id="audioList"></div>
-    
     <div class="footer">&copy; 2026 AetherZebub</div>
 
     <script>
@@ -154,14 +150,11 @@
 
         fileInput.addEventListener('change', (e) => {
             let files = Array.from(e.target.files);
-            
             if (files.length > MAX_FILES) {
                 alert(`Maksimal ${MAX_FILES} file sekaligus untuk menjaga performa browser Anda.`);
                 files = files.slice(0, MAX_FILES);
             }
-
             if (files.length > 0) downloadBtn.disabled = false;
-
             files.forEach(file => createAudioCard(file));
             fileInput.value = ''; 
         });
@@ -170,7 +163,6 @@
             const id = 'wave-' + Math.random().toString(36).substr(2, 9);
             const card = document.createElement('div');
             card.className = 'audio-card';
-            
             card.innerHTML = `
                 <div class="file-info">
                     <div class="file-name" title="${file.name}">${file.name}</div>
@@ -192,15 +184,12 @@
             });
 
             ws.loadBlob(file);
-            
             ws.on('ready', () => {
                 ws.setPlaybackRate(parseFloat(mSpeed.value));
-                // Konversi nilai dB awal ke linear (0-1+) untuk Wavesurfer
-                const initialDb = parseFloat(mVol.value);
-                const linearVol = Math.pow(10, initialDb / 20);
+                const dbVal = parseFloat(mVol.value);
+                const linearVol = Math.pow(10, dbVal / 20);
                 ws.setVolume(linearVol);
             });
-
             waveSurfers.push({ id: id, instance: ws, fileName: file.name, fileBlob: file });
         }
 
@@ -210,7 +199,6 @@
             if (waveSurfers.length === 0) downloadBtn.disabled = true;
         }
 
-        // Sinkronisasi UI (Visual Preview)
         mSpeed.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             document.getElementById('mSpeedLabel').innerText = val;
@@ -219,27 +207,25 @@
 
         mPitch.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
-            const displayVal = val > 0 ? "+" + val : val;
-            document.getElementById('mPitchLabel').innerText = displayVal;
+            document.getElementById('mPitchLabel').innerText = val > 0 ? "+" + val : val;
         });
 
         mVol.addEventListener('input', (e) => {
             const dbVal = parseFloat(e.target.value);
-            const displayDb = dbVal > 0 ? "+" + dbVal + " dB" : dbVal + " dB";
-            document.getElementById('mVolLabel').innerText = displayDb;
-            
-            // Konversi dB ke linear multiplier untuk Wavesurfer Preview
+            document.getElementById('mVolLabel').innerText = dbVal > 0 ? "+" + dbVal + " dB" : dbVal + " dB";
             const linearVol = Math.pow(10, dbVal / 20);
             waveSurfers.forEach(item => item.instance.setVolume(linearVol));
         });
 
-        // --- SISTEM RENDER AUDIO ---
+        // --- SISTEM RENDER AUDIO (VERSI AMAN DARI MEMORY LEAK) ---
         async function processAudioToWav(fileBlob, speed, volumeDb, pitch) {
-            const arrayBuffer = await fileBlob.arrayBuffer();
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
+            // Menggunakan URL statis untuk dimuat oleh Tone.js (Mencegah AudioContext Crash)
+            const url = URL.createObjectURL(fileBlob);
+            const toneBuffer = new Tone.ToneAudioBuffer();
             
-            const toneBuffer = new Tone.ToneAudioBuffer(decodedData);
+            await toneBuffer.load(url);
+            URL.revokeObjectURL(url); // Bersihkan RAM
+
             const duration = toneBuffer.duration / speed;
 
             const renderedBuffer = await Tone.Offline(() => {
@@ -247,8 +233,6 @@
                 offlinePlayer.playbackRate = speed;
                 
                 const pitchShift = new Tone.PitchShift(pitch);
-                
-                // Memasukkan nilai dB secara langsung ke Tone.Volume
                 const volNode = new Tone.Volume(volumeDb);
 
                 offlinePlayer.chain(pitchShift, volNode, Tone.Destination);
@@ -258,7 +242,6 @@
             return audioBufferToWav(renderedBuffer.get());
         }
 
-        // Konverter AudioBuffer ke File WAV
         function audioBufferToWav(buffer) {
             const numOfChan = buffer.numberOfChannels;
             const length = buffer.length * numOfChan * 2 + 44;
@@ -290,12 +273,14 @@
             return new Blob([bufferArray], {type: "audio/wav"});
         }
 
-        // Proses Batch Download
         downloadBtn.addEventListener('click', async () => {
-            statusText.innerText = "⏳ Sedang menyiapkan mesin render...";
+            statusText.innerText = "⏳ Memulai mesin audio... (Mohon tunggu)";
             downloadBtn.disabled = true;
             
             try {
+                // Wajib untuk menyalakan engine audio di browser modern
+                await Tone.start(); 
+                
                 const zip = new JSZip();
                 const currentSpeed = parseFloat(mSpeed.value);
                 const currentPitch = parseFloat(mPitch.value);
@@ -303,9 +288,9 @@
 
                 for (let i = 0; i < waveSurfers.length; i++) {
                     const item = waveSurfers[i];
-                    statusText.innerText = `⏳ Merender file ${i + 1} dari ${waveSurfers.length}...`;
+                    statusText.innerText = `⏳ Merender lagu ${i + 1} dari ${waveSurfers.length}... (Proses ini butuh waktu)`;
                     
-                    await new Promise(r => setTimeout(r, 50)); 
+                    await new Promise(r => setTimeout(r, 100)); // Beri napas ke UI
                     
                     const wavBlob = await processAudioToWav(item.fileBlob, currentSpeed, currentVolDb, currentPitch);
                     
@@ -313,7 +298,7 @@
                     zip.file(newName, wavBlob);
                 }
 
-                statusText.innerText = "📦 Membungkus file ke dalam ZIP...";
+                statusText.innerText = "📦 Sedang membungkus menjadi ZIP...";
                 const zipContent = await zip.generateAsync({type: "blob"});
                 
                 const url = URL.createObjectURL(zipContent);
@@ -324,8 +309,8 @@
 
                 statusText.innerText = "✅ Selesai! File ZIP berhasil diunduh.";
             } catch (error) {
-                console.error(error);
-                statusText.innerText = "❌ Terjadi kesalahan saat merender audio.";
+                console.error("Detail Error:", error);
+                statusText.innerText = "❌ Terjadi kesalahan. Coba gunakan file audio dengan ukuran lebih kecil/pendek terlebih dahulu.";
             } finally {
                 downloadBtn.disabled = false;
             }
