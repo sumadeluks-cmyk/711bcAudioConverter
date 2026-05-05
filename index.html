@@ -108,7 +108,7 @@
 
     <header>
         <h1>Aether Audio Studio</h1>
-        <div class="subtitle">Batch Processor (Max 10 Files) - Speed, Pitch, & dB Gain</div>
+        <div class="subtitle">Batch Processor (Max 10 Files) - Optimized Engine</div>
 
         <div class="master-controls">
             <div class="control-item">
@@ -151,7 +151,7 @@
         fileInput.addEventListener('change', (e) => {
             let files = Array.from(e.target.files);
             if (files.length > MAX_FILES) {
-                alert(`Maksimal ${MAX_FILES} file sekaligus untuk menjaga performa browser Anda.`);
+                alert(`Maksimal ${MAX_FILES} file sekaligus.`);
                 files = files.slice(0, MAX_FILES);
             }
             if (files.length > 0) downloadBtn.disabled = false;
@@ -217,27 +217,36 @@
             waveSurfers.forEach(item => item.instance.setVolume(linearVol));
         });
 
-        // --- SISTEM RENDER AUDIO (VERSI AMAN DARI MEMORY LEAK) ---
+        // --- SISTEM RENDER AUDIO (SUPER OPTIMIZED) ---
         async function processAudioToWav(fileBlob, speed, volumeDb, pitch) {
-            // Menggunakan URL statis untuk dimuat oleh Tone.js (Mencegah AudioContext Crash)
-            const url = URL.createObjectURL(fileBlob);
-            const toneBuffer = new Tone.ToneAudioBuffer();
-            
-            await toneBuffer.load(url);
-            URL.revokeObjectURL(url); // Bersihkan RAM
+            // 1. Ekstrak data audio murni dengan aman
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const decodedData = await tempCtx.decodeAudioData(arrayBuffer);
+            tempCtx.close(); // LANGSUNG TUTUP agar memori tidak bocor!
 
+            const toneBuffer = new Tone.ToneAudioBuffer(decodedData);
             const duration = toneBuffer.duration / speed;
 
+            // 2. Mulai Render Offline
             const renderedBuffer = await Tone.Offline(() => {
                 const offlinePlayer = new Tone.Player(toneBuffer);
                 offlinePlayer.playbackRate = speed;
                 
-                const pitchShift = new Tone.PitchShift(pitch);
                 const volNode = new Tone.Volume(volumeDb);
 
-                offlinePlayer.chain(pitchShift, volNode, Tone.Destination);
+                // OPTIMASI KRUSIAL: Jangan buat efek Pitch jika Pitch = 0 (Sangat berat di RAM)
+                if (pitch !== 0) {
+                    const pitchShift = new Tone.PitchShift(pitch);
+                    offlinePlayer.chain(pitchShift, volNode, Tone.Destination);
+                } else {
+                    offlinePlayer.chain(volNode, Tone.Destination);
+                }
+                
                 offlinePlayer.start(0);
             }, duration);
+
+            toneBuffer.dispose(); // Bersihkan RAM ToneJS
 
             return audioBufferToWav(renderedBuffer.get());
         }
@@ -274,11 +283,10 @@
         }
 
         downloadBtn.addEventListener('click', async () => {
-            statusText.innerText = "⏳ Memulai mesin audio... (Mohon tunggu)";
+            statusText.innerText = "⏳ Menyiapkan mesin (Harap bersabar, browser sedang bekerja keras)...";
             downloadBtn.disabled = true;
             
             try {
-                // Wajib untuk menyalakan engine audio di browser modern
                 await Tone.start(); 
                 
                 const zip = new JSZip();
@@ -288,9 +296,9 @@
 
                 for (let i = 0; i < waveSurfers.length; i++) {
                     const item = waveSurfers[i];
-                    statusText.innerText = `⏳ Merender lagu ${i + 1} dari ${waveSurfers.length}... (Proses ini butuh waktu)`;
+                    statusText.innerText = `⏳ Merender [${item.fileName}] (${i + 1}/${waveSurfers.length})...`;
                     
-                    await new Promise(r => setTimeout(r, 100)); // Beri napas ke UI
+                    await new Promise(r => setTimeout(r, 100)); 
                     
                     const wavBlob = await processAudioToWav(item.fileBlob, currentSpeed, currentVolDb, currentPitch);
                     
@@ -298,7 +306,7 @@
                     zip.file(newName, wavBlob);
                 }
 
-                statusText.innerText = "📦 Sedang membungkus menjadi ZIP...";
+                statusText.innerText = "📦 Membungkus menjadi ZIP...";
                 const zipContent = await zip.generateAsync({type: "blob"});
                 
                 const url = URL.createObjectURL(zipContent);
@@ -310,7 +318,7 @@
                 statusText.innerText = "✅ Selesai! File ZIP berhasil diunduh.";
             } catch (error) {
                 console.error("Detail Error:", error);
-                statusText.innerText = "❌ Terjadi kesalahan. Coba gunakan file audio dengan ukuran lebih kecil/pendek terlebih dahulu.";
+                statusText.innerText = "❌ Gagal Render. Browser Anda mungkin kehabisan memori. Coba refresh halaman dan tes 1 file saja.";
             } finally {
                 downloadBtn.disabled = false;
             }
