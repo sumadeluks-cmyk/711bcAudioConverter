@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>711bc Audio Converter</title>
     
-    <!-- Library Eksternal -->
+    <!-- Library Eksternal (Hanya yang paling ringan) -->
     <script src="https://unpkg.com/wavesurfer.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     
     <style>
@@ -51,7 +50,6 @@
 
         .header { text-align: center; margin-bottom: 35px; }
         
-        /* Teks Judul dengan Efek Gradasi */
         .header h1 { 
             margin: 0; 
             font-size: 2.5rem; 
@@ -64,7 +62,6 @@
         }
         .header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; letter-spacing: 0.5px; }
 
-        /* Upload Area */
         .upload-area {
             border: 2px dashed #334155;
             border-radius: 16px;
@@ -105,7 +102,6 @@
         }
         .control-item span { color: #a78bfa; font-weight: 700; }
         
-        /* Slider Kustom */
         input[type="range"] {
             width: 100%;
             accent-color: var(--accent-color);
@@ -131,7 +127,6 @@
             letter-spacing: 0.5px;
         }
         
-        /* Tombol Play Gelap Modern */
         .btn-play { 
             background: #1e293b; 
             color: var(--text-main); 
@@ -139,7 +134,6 @@
         }
         .btn-play:hover { background: #334155; transform: translateY(-2px); }
         
-        /* Tombol Export Gradasi dengan Efek Glow */
         .btn-export { 
             background: var(--accent-gradient); 
             color: white; 
@@ -161,7 +155,7 @@
     <div class="studio-container">
         <div class="header">
             <h1>711bc Audio Converter</h1>
-            <p>Advanced MP3 Bypass Engine • Single Track Editor</p>
+            <p>Fast MP3 Bypass Engine • Single Track Editor</p>
         </div>
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -180,12 +174,8 @@
 
             <div class="controls-grid">
                 <div class="control-item">
-                    <label>Speed (Tempo) <span id="valSpeed">2.30x</span></label>
+                    <label>Bypass Speed (Nada Otomatis Naik) <span id="valSpeed">2.30x</span></label>
                     <input type="range" id="ctrlSpeed" min="0.5" max="2.3" step="0.01" value="2.3">
-                </div>
-                <div class="control-item">
-                    <label>Pitch (Nada) <span id="valPitch">0</span></label>
-                    <input type="range" id="ctrlPitch" min="-12" max="12" step="1" value="0">
                 </div>
                 <div class="control-item">
                     <label>Volume Boost <span id="valVol">0 dB</span></label>
@@ -213,7 +203,6 @@
         const statusMsg = document.getElementById('statusMsg');
         
         const ctrlSpeed = document.getElementById('ctrlSpeed');
-        const ctrlPitch = document.getElementById('ctrlPitch');
         const ctrlVol = document.getElementById('ctrlVol');
         
         const btnPlay = document.getElementById('btnPlay');
@@ -244,7 +233,6 @@
             wavesurfer.loadBlob(file);
             
             ctrlSpeed.value = 2.3; document.getElementById('valSpeed').innerText = '2.30x';
-            ctrlPitch.value = 0; document.getElementById('valPitch').innerText = '0';
             ctrlVol.value = 0; document.getElementById('valVol').innerText = '0 dB';
             
             wavesurfer.on('ready', () => {
@@ -271,11 +259,6 @@
             wavesurfer.setPlaybackRate(val);
         });
 
-        ctrlPitch.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            document.getElementById('valPitch').innerText = val > 0 ? '+' + val : val;
-        });
-
         ctrlVol.addEventListener('input', (e) => {
             const dbVal = parseInt(e.target.value);
             document.getElementById('valVol').innerText = dbVal > 0 ? '+' + dbVal + ' dB' : dbVal + ' dB';
@@ -283,6 +266,7 @@
             wavesurfer.setVolume(linearVol);
         });
 
+        // --- SISTEM RENDER MURNI WEB AUDIO API (SANGAT RINGAN) ---
         btnExport.addEventListener('click', async () => {
             if (!currentFile) return;
             
@@ -292,44 +276,47 @@
             btnPlay.innerHTML = '▶ Play Preview';
 
             try {
-                await Tone.start();
                 statusMsg.style.color = '#60a5fa'; // Biru terang
                 statusMsg.innerText = "⏳ Memproses Audio Engine... (Tunggu sebentar)";
 
                 const speed = parseFloat(ctrlSpeed.value);
-                const pitch = parseInt(ctrlPitch.value);
                 const volumeDb = parseInt(ctrlVol.value);
 
+                // 1. Decode Audio
                 const arrayBuffer = await currentFile.arrayBuffer();
-                const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const decodedData = await tempCtx.decodeAudioData(arrayBuffer);
-                tempCtx.close();
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
 
-                const toneBuffer = new Tone.ToneAudioBuffer(decodedData);
-                const duration = toneBuffer.duration / speed;
+                // 2. Hitung durasi baru
+                const newDuration = decodedData.duration / speed;
+                
+                // 3. Render Offline menggunakan Web Audio murni
+                const offlineCtx = new OfflineAudioContext(
+                    decodedData.numberOfChannels, 
+                    Math.ceil(decodedData.sampleRate * newDuration), 
+                    decodedData.sampleRate
+                );
 
-                const renderedBuffer = await Tone.Offline(() => {
-                    const player = new Tone.Player(toneBuffer);
-                    player.playbackRate = speed;
-                    
-                    const volNode = new Tone.Volume(volumeDb);
+                const source = offlineCtx.createBufferSource();
+                source.buffer = decodedData;
+                source.playbackRate.value = speed; // Ini mengubah kecepatan dan nada sekaligus
 
-                    if (pitch !== 0) {
-                        const pitchShift = new Tone.PitchShift(pitch);
-                        player.chain(pitchShift, volNode, Tone.Destination);
-                    } else {
-                        player.chain(volNode, Tone.Destination);
-                    }
-                    player.start(0);
-                }, duration);
+                const gainNode = offlineCtx.createGain();
+                gainNode.gain.value = Math.pow(10, volumeDb / 20); 
 
-                toneBuffer.dispose(); 
+                source.connect(gainNode);
+                gainNode.connect(offlineCtx.destination);
+                source.start(0);
+
+                const renderedBuffer = await offlineCtx.startRendering();
+                audioCtx.close(); // Tutup agar memori tidak bocor
                 
                 statusMsg.style.color = '#c084fc'; // Ungu terang
                 statusMsg.innerText = "📦 Mengkonversi ke format .MP3...";
-                await new Promise(r => setTimeout(r, 100)); 
+                await new Promise(r => setTimeout(r, 100)); // Beri napas ke UI
 
-                const mp3Blob = encodeAudioBufferToMp3(renderedBuffer.get());
+                // 4. Encode ke MP3
+                const mp3Blob = encodeAudioBufferToMp3(renderedBuffer);
                 
                 const url = URL.createObjectURL(mp3Blob);
                 const a = document.createElement('a');
@@ -365,6 +352,7 @@
             const leftInt16 = new Int16Array(leftData.length);
             const rightInt16 = new Int16Array(rightData.length);
 
+            // Konversi Float32 ke Int16
             for (let i = 0; i < leftData.length; i++) {
                 let leftSample = Math.max(-1, Math.min(1, leftData[i]));
                 leftInt16[i] = leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF;
@@ -374,6 +362,7 @@
                 }
             }
 
+            // Encode per blok
             for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
                 const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
                 let mp3buf;
