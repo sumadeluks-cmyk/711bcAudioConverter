@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>711bc Audio Converter | OGG Edition</title>
+    <title>711bc Audio Converter | Hi-Fi WAV</title>
     
-    <!-- Library Eksternal -->
     <script src="https://unpkg.com/wavesurfer.js"></script>
-    <!-- Mesin OGG Vorbis Encoder yang Stabil -->
-    <script src="https://cdn.jsdelivr.net/npm/vorbis.js@0.0.3/dist/vorbis.min.js"></script>
     
     <style>
         :root {
@@ -110,7 +107,7 @@
         <div class="header">
             <h1>711bc Audio Converter</h1>
             <p class="info-text">
-                <b>OGG Vorbis Edition</b>. Default speed 2.30x disarankan untuk free asset music <b>Sevenelefen Beach Club</b>.
+                <b>Hi-Fi WAV Edition</b>. Kualitas jernih maksimal untuk <b>Sevenelefen Beach Club</b>.
             </p>
             <a href="https://discord.gg/agYYe2rtMt" target="_blank" class="discord-link">
                 <svg width="20" height="20" viewBox="0 0 127.14 96.36" fill="currentColor"><path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.82,56.6.39,80.21a105.73,105.73,0,0,0,32.17,16.15,77.7,77.7,0,0,0,6.89-11.11,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.52-51.06-19.36-72.13ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/></svg>
@@ -120,7 +117,7 @@
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <h3 style="margin:0; color:#f8fafc;">Pilih File Audio</h3>
-            <p style="margin:8px 0 0; color:#64748b;">Klik untuk konversi ke OGG (High Quality)</p>
+            <p style="margin:8px 0 0; color:#64748b;">Klik untuk konversi ke WAV (Lossless)</p>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
         </div>
 
@@ -142,7 +139,7 @@
             <div class="action-buttons">
                 <button class="btn btn-reset" onclick="location.reload()">🔄 Reset / Baru</button>
                 <button id="btnPlay" class="btn btn-play">▶ Play Preview</button>
-                <button id="btnExport" class="btn btn-export">⬇ Convert ke OGG</button>
+                <button id="btnExport" class="btn btn-export">⬇ Convert ke WAV</button>
             </div>
             <div id="statusMsg"></div>
         </div>
@@ -201,12 +198,11 @@
             return short || "audio";
         }
 
-        // --- SISTEM KONVERSI OGG MURNI ---
         btnExport.addEventListener('click', async () => {
             if (!currentFile) return;
             btnExport.disabled = true;
             statusMsg.style.color = '#60a5fa';
-            statusMsg.innerText = "⏳ Sedang me-render OGG kualitas tinggi...";
+            statusMsg.innerText = "⏳ Sedang me-render WAV kualitas studio...";
 
             try {
                 const speed = parseFloat(ctrlSpeed.value);
@@ -215,9 +211,9 @@
                 const audioCtx = new AudioContext();
                 const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
                 
-                // Render Offline
                 const newDuration = decodedData.duration / speed;
                 const offlineCtx = new OfflineAudioContext(decodedData.numberOfChannels, Math.ceil(decodedData.sampleRate * newDuration), decodedData.sampleRate);
+                
                 const source = offlineCtx.createBufferSource();
                 source.buffer = decodedData;
                 source.playbackRate.value = speed;
@@ -225,39 +221,63 @@
                 gainNode.gain.value = Math.pow(10, volumeDb / 20);
                 source.connect(gainNode); gainNode.connect(offlineCtx.destination);
                 source.start(0);
+                
                 const renderedBuffer = await offlineCtx.startRendering();
                 audioCtx.close();
 
-                // Encode ke Vorbis OGG
-                statusMsg.innerText = "📦 Membungkus menjadi .OGG...";
-                const oggBlob = await encodeVorbis(renderedBuffer);
+                // Convert AudioBuffer ke Blob WAV (Native JS)
+                const wavBlob = audioBufferToWav(renderedBuffer);
                 
-                const finalName = "711bc_" + shortenName(currentFile.name) + ".ogg";
-                const url = URL.createObjectURL(oggBlob);
+                const finalName = "711bc_" + shortenName(currentFile.name) + ".wav";
+                const url = URL.createObjectURL(wavBlob);
                 const a = document.createElement('a'); a.href = url; a.download = finalName; a.click();
                 
-                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai!";
+                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai! Siap upload ke Roblox.";
             } catch (err) {
                 console.error(err);
-                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Gagal me-render OGG.";
+                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Kesalahan sistem render.";
             } finally { btnExport.disabled = false; }
         });
 
-        async function encodeVorbis(buffer) {
-            return new Promise((resolve) => {
-                const encoder = new VorbisEncoder();
-                const chunks = [];
-                encoder.ondata = (data) => chunks.push(data);
-                encoder.onfinish = () => resolve(new Blob(chunks, { type: 'audio/ogg' }));
-                
-                // Konversi data channel ke format Vorbis
-                const channels = [];
-                for(let i=0; i<buffer.numberOfChannels; i++) {
-                    channels.push(buffer.getChannelData(i));
+        // --- NATIVE WAV ENCODER (STABIL & TANPA LIBRARY) ---
+        function audioBufferToWav(buffer) {
+            let numOfChan = buffer.numberOfChannels,
+                length = buffer.length * numOfChan * 2 + 44,
+                bufferWav = new ArrayBuffer(length),
+                view = new DataView(bufferWav),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8); // file length - 8
+            setUint32(0x45564157); // "WAVE"
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16);         // length = 16
+            setUint16(1);          // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2); // block-align
+            setUint16(16);         // 16-bit
+            setUint32(0x61746164); // "data" chunk
+            setUint32(length - pos - 4); // chunk length
+
+            for(i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
+
+            while(pos < length) {
+                for(i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
                 }
-                encoder.encode(channels, buffer.sampleRate, 0.5); // Quality 0.5 = High
-                encoder.finish();
-            });
+                offset++;
+            }
+            return new Blob([bufferWav], { type: 'audio/wav' });
         }
     </script>
 </body>
