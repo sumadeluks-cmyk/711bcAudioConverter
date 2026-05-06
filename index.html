@@ -52,7 +52,32 @@
             background: var(--accent-gradient); -webkit-background-clip: text;
             -webkit-text-fill-color: transparent; text-shadow: 0px 4px 20px rgba(139, 92, 246, 0.2);
         }
-        .header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; }
+
+        /* Discord Link Styling */
+        .discord-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            color: #5865F2; /* Warna asli Discord */
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(88, 101, 242, 0.1);
+        }
+        .discord-link:hover {
+            background: rgba(88, 101, 242, 0.2);
+            transform: translateY(-1px);
+            filter: brightness(1.2);
+        }
+        .discord-icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
 
         .upload-area {
             border: 2px dashed #334155; border-radius: 16px; padding: 45px 20px;
@@ -94,7 +119,6 @@
             font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease;
         }
         
-        /* Tombol Ganti Lagu (Baru) */
         .btn-reset { 
             background: transparent; color: var(--text-muted); 
             border: 1px dashed #475569; flex: 0.5; min-width: 120px;
@@ -118,7 +142,13 @@
     <div class="studio-container">
         <div class="header">
             <h1>711bc Audio Converter</h1>
-            <p>Chipmunk MP3 Bypass Engine • Anti-Crash System</p>
+            <!-- Logo & Link Discord -->
+            <a href="https://discord.gg/agYYe2rtMt" target="_blank" class="discord-link">
+                <svg class="discord-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.82,56.6.39,80.21a105.73,105.73,0,0,0,32.17,16.15,77.7,77.7,0,0,0,6.89-11.11,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c2.64-27.38-4.52-51.06-19.36-72.13ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
+                </svg>
+                discord.gg/agYYe2rtMt
+            </a>
         </div>
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -165,7 +195,6 @@
         const fileInput = document.getElementById('fileInput');
         const trackName = document.getElementById('trackName');
         const statusMsg = document.getElementById('statusMsg');
-        
         const ctrlSpeed = document.getElementById('ctrlSpeed');
         const ctrlVol = document.getElementById('ctrlVol');
         const btnPlay = document.getElementById('btnPlay');
@@ -179,32 +208,21 @@
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
-            // Hentikan lagu lama jika sedang diputar
-            if (wavesurfer.isPlaying()) {
-                wavesurfer.pause();
-                btnPlay.innerHTML = '▶ Play Preview';
-            }
-
+            if (wavesurfer.isPlaying()) wavesurfer.pause();
             currentFile = file;
             trackName.innerText = "🎵 " + file.name;
             uploadArea.style.display = 'none';
             editorArea.style.display = 'block';
-            statusMsg.innerText = ""; // Bersihkan status error sebelumnya jika ada
-
+            statusMsg.innerText = "";
             wavesurfer.loadBlob(file);
             ctrlSpeed.value = 2.3; document.getElementById('valSpeed').innerText = '2.30x';
             ctrlVol.value = 0; document.getElementById('valVol').innerText = '0 dB';
-            
             wavesurfer.on('ready', () => {
                 wavesurfer.setPlaybackRate(2.3);
                 wavesurfer.setVolume(1.0);
-                
                 const media = wavesurfer.getMediaElement();
                 if (media) {
-                    media.preservesPitch = false; 
-                    media.mozPreservesPitch = false;
-                    media.webkitPreservesPitch = false;
+                    media.preservesPitch = false; media.mozPreservesPitch = false; media.webkitPreservesPitch = false;
                 }
             });
         });
@@ -234,60 +252,40 @@
         btnExport.addEventListener('click', async () => {
             if (!currentFile) return;
             btnExport.disabled = true; btnPlay.disabled = true; wavesurfer.pause();
-            btnPlay.innerHTML = '▶ Play Preview';
-
             try {
                 statusMsg.style.color = '#60a5fa'; 
-                statusMsg.innerText = "⏳ Sedang menyiapkan mesin audio...";
-
+                statusMsg.innerText = "⏳ Menyiapkan mesin audio...";
                 const speed = parseFloat(ctrlSpeed.value);
                 const volumeDb = parseInt(ctrlVol.value);
-
                 const arrayBuffer = await currentFile.arrayBuffer();
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
-
                 const newDuration = decodedData.duration / speed;
-                const offlineCtx = new OfflineAudioContext(
-                    decodedData.numberOfChannels, 
-                    Math.ceil(decodedData.sampleRate * newDuration), 
-                    decodedData.sampleRate
-                );
-
+                const offlineCtx = new OfflineAudioContext(decodedData.numberOfChannels, Math.ceil(decodedData.sampleRate * newDuration), decodedData.sampleRate);
                 const source = offlineCtx.createBufferSource();
                 source.buffer = decodedData;
-                source.playbackRate.value = speed; 
-
+                source.playbackRate.value = speed;
                 const gainNode = offlineCtx.createGain();
                 gainNode.gain.value = Math.pow(10, volumeDb / 20); 
-
                 source.connect(gainNode); gainNode.connect(offlineCtx.destination);
                 source.start(0);
-
-                statusMsg.innerText = "⏳ Sedang me-render efek audio...";
                 const renderedBuffer = await offlineCtx.startRendering();
                 audioCtx.close(); 
-                
                 statusMsg.style.color = '#c084fc'; 
                 const mp3Blob = await encodeAudioBufferToMp3Async(renderedBuffer, (percent) => {
                     statusMsg.innerText = `📦 Mengompres ke MP3... ${percent}%`;
                 });
-                
                 const url = URL.createObjectURL(mp3Blob);
                 const a = document.createElement('a'); a.href = url;
                 a.download = "711bc_" + currentFile.name.replace(/\.[^/.]+$/, "") + ".mp3";
                 a.click();
                 URL.revokeObjectURL(url);
-
-                statusMsg.style.color = '#34d399'; 
-                statusMsg.innerText = "✅ Selesai! Cek folder Download Anda.";
-
+                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai!";
             } catch (error) {
-                console.error(error);
-                statusMsg.style.color = '#f87171'; 
-                statusMsg.innerText = "❌ Gagal: " + (error.message || "Memori browser tidak kuat.");
+                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Gagal memproses.";
             } finally {
                 btnExport.disabled = false; btnPlay.disabled = false;
+                btnPlay.innerHTML = '▶ Play Preview';
             }
         });
 
@@ -297,13 +295,10 @@
             const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
             const mp3Data = [];
             const sampleBlockSize = 1152;
-            
             const leftData = buffer.getChannelData(0);
             const rightData = channels === 2 ? buffer.getChannelData(1) : leftData;
-
             const leftInt16 = new Int16Array(leftData.length);
             const rightInt16 = new Int16Array(rightData.length);
-
             for (let i = 0; i < leftData.length; i++) {
                 let l = Math.max(-1, Math.min(1, leftData[i]));
                 leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
@@ -313,7 +308,6 @@
                 }
                 if (i > 0 && i % 500000 === 0) await new Promise(res => setTimeout(res, 0));
             }
-
             for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
                 const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
                 let mp3buf;
@@ -324,17 +318,13 @@
                     mp3buf = mp3encoder.encodeBuffer(leftChunk);
                 }
                 if (mp3buf.length > 0) mp3Data.push(mp3buf);
-                
                 if (i > 0 && i % (sampleBlockSize * 100) === 0) {
-                    let percent = Math.round((i / leftInt16.length) * 100);
-                    onProgress(percent);
+                    onProgress(Math.round((i / leftInt16.length) * 100));
                     await new Promise(res => setTimeout(res, 0)); 
                 }
             }
-
             const mp3buf = mp3encoder.flush();
             if (mp3buf.length > 0) mp3Data.push(mp3buf);
-
             return new Blob(mp3Data, { type: 'audio/mp3' });
         }
     </script>
