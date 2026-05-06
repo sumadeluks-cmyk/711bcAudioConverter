@@ -6,6 +6,7 @@
     <title>711bc Audio Converter</title>
     
     <script src="https://unpkg.com/wavesurfer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     
     <style>
         :root {
@@ -51,10 +52,9 @@
             -webkit-text-fill-color: transparent; text-shadow: 0px 4px 20px rgba(139, 92, 246, 0.2);
         }
 
-        /* Teks Keterangan Baru */
         .header p.info-text {
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             max-width: 500px;
             margin: 12px auto 0;
             line-height: 1.5;
@@ -88,9 +88,7 @@
             text-align: center; cursor: pointer; transition: all 0.3s ease;
             background: rgba(15, 23, 42, 0.4);
         }
-        .upload-area:hover { 
-            border-color: var(--accent-color); background: rgba(15, 23, 42, 0.8); 
-        }
+        .upload-area:hover { border-color: var(--accent-color); background: rgba(15, 23, 42, 0.8); }
         
         #editorArea { display: none; }
 
@@ -122,13 +120,9 @@
             font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease;
         }
         
-        .btn-reset { 
-            background: transparent; color: var(--text-muted); 
-            border: 1px dashed #475569; flex: 0.5; min-width: 120px;
-        }
-
+        .btn-reset { background: transparent; color: var(--text-muted); border: 1px dashed #475569; flex: 0.5; }
         .btn-play { background: #1e293b; color: var(--text-main); border: 1px solid #334155; }
-        .btn-export { background: var(--accent-gradient); color: white; }
+        .btn-export { background: var(--accent-gradient); color: white; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         #statusMsg { text-align: center; margin-top: 20px; font-weight: 600; font-size: 0.95rem; }
@@ -150,12 +144,12 @@
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <h3 style="margin:0; color:#f8fafc;">Pilih File Audio</h3>
-            <p style="margin:8px 0 0; color:#64748b;">Klik untuk memuat lagu (Format OGG)</p>
+            <p style="margin:8px 0 0; color:#64748b;">Klik untuk memuat lagu (Export ke MP3)</p>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
         </div>
 
         <div id="editorArea">
-            <h4 id="trackName" style="margin-top:0; color:#94a3b8; text-align:center;"></h4>
+            <h4 id="trackName" style="margin-top:0; color:#94a3b8; text-align:center; white-space:nowrap; overflow: hidden; text-overflow: ellipsis;"></h4>
             <div class="waveform-wrapper"><div id="waveform"></div></div>
 
             <div class="controls-grid">
@@ -172,7 +166,7 @@
             <div class="action-buttons">
                 <button class="btn btn-reset" onclick="document.getElementById('fileInput').click()">🔄 Ganti Lagu</button>
                 <button id="btnPlay" class="btn btn-play">▶ Play Preview</button>
-                <button id="btnExport" class="btn btn-export">⬇ Convert ke .OGG</button>
+                <button id="btnExport" class="btn btn-export">⬇ Convert ke MP3</button>
             </div>
             <div id="statusMsg"></div>
         </div>
@@ -211,9 +205,7 @@
             wavesurfer.on('ready', () => {
                 wavesurfer.setPlaybackRate(2.3);
                 const media = wavesurfer.getMediaElement();
-                if (media) {
-                    media.preservesPitch = false;
-                }
+                if (media) { media.preservesPitch = false; }
             });
         });
 
@@ -236,64 +228,90 @@
 
         function shortenName(name) {
             let base = name.replace(/\.[^/.]+$/, "").toLowerCase();
-            let short = base.replace(/[aeiou\s]/g, "");
+            let short = base.replace(/[aeiou\s]/g, ""); // Hapus vokal & spasi
             return short || "audio";
         }
 
         btnExport.addEventListener('click', async () => {
             if (!currentFile) return;
-            btnExport.disabled = true; statusMsg.style.color = '#60a5fa';
-            statusMsg.innerText = "⏳ Sedang me-render audio ke format OGG...";
-
+            btnExport.disabled = true; btnPlay.disabled = true; wavesurfer.pause();
             try {
+                statusMsg.style.color = '#60a5fa'; statusMsg.innerText = "⏳ Memproses Audio...";
                 const speed = parseFloat(ctrlSpeed.value);
                 const volumeDb = parseInt(ctrlVol.value);
                 const arrayBuffer = await currentFile.arrayBuffer();
-                const audioCtx = new AudioContext();
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
-                
                 const newDuration = decodedData.duration / speed;
                 const offlineCtx = new OfflineAudioContext(decodedData.numberOfChannels, Math.ceil(decodedData.sampleRate * newDuration), decodedData.sampleRate);
                 
                 const source = offlineCtx.createBufferSource();
                 source.buffer = decodedData;
                 source.playbackRate.value = speed;
-                
                 const gainNode = offlineCtx.createGain();
-                gainNode.gain.value = Math.pow(10, volumeDb / 20);
-                
+                gainNode.gain.value = Math.pow(10, volumeDb / 20); 
                 source.connect(gainNode); gainNode.connect(offlineCtx.destination);
                 source.start(0);
                 
                 const renderedBuffer = await offlineCtx.startRendering();
-                audioCtx.close();
+                audioCtx.close(); 
                 
-                const oggBlob = await audioBufferToOgg(renderedBuffer);
-                const finalName = "711bc_" + shortenName(currentFile.name) + ".ogg";
+                statusMsg.style.color = '#c084fc'; 
+                const mp3Blob = await encodeAudioBufferToMp3Async(renderedBuffer, (p) => {
+                    statusMsg.innerText = `📦 Mengompres... ${p}%`;
+                });
                 
-                const url = URL.createObjectURL(oggBlob);
+                const finalName = "711bc_" + shortenName(currentFile.name) + ".mp3";
+                const url = URL.createObjectURL(mp3Blob);
                 const a = document.createElement('a'); a.href = url; a.download = finalName; a.click();
                 
-                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Berhasil Diunduh!";
-            } catch (err) {
+                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Berhasil!";
+            } catch (error) {
                 statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Gagal memproses.";
-            } finally { btnExport.disabled = false; }
+            } finally {
+                btnExport.disabled = false; btnPlay.disabled = false;
+                btnPlay.innerHTML = '▶ Play Preview';
+            }
         });
 
-        async function audioBufferToOgg(buffer) {
-            const ctx = new AudioContext();
-            const source = ctx.createBufferSource();
-            source.buffer = buffer;
-            const dest = ctx.createMediaStreamDestination();
-            source.connect(dest);
-            const recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/ogg' });
-            const chunks = [];
-            return new Promise((resolve) => {
-                recorder.ondataavailable = (e) => chunks.push(e.data);
-                recorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/ogg' }));
-                recorder.start(); source.start(0);
-                setTimeout(() => { recorder.stop(); ctx.close(); }, (buffer.duration * 1000) + 100);
-            });
+        async function encodeAudioBufferToMp3Async(buffer, onProgress) {
+            const channels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
+            const mp3Data = [];
+            const sampleBlockSize = 1152;
+            const leftData = buffer.getChannelData(0);
+            const rightData = channels === 2 ? buffer.getChannelData(1) : leftData;
+            const leftInt16 = new Int16Array(leftData.length);
+            const rightInt16 = new Int16Array(rightData.length);
+
+            for (let i = 0; i < leftData.length; i++) {
+                let l = Math.max(-1, Math.min(1, leftData[i]));
+                leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
+                if(channels === 2) {
+                    let r = Math.max(-1, Math.min(1, rightData[i]));
+                    rightInt16[i] = r < 0 ? r * 0x8000 : r * 0x7FFF;
+                }
+            }
+
+            for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+                const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                let mp3buf;
+                if (channels === 2) {
+                    const rightChunk = rightInt16.subarray(i, i + sampleBlockSize);
+                    mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                } else {
+                    mp3buf = mp3encoder.encodeBuffer(leftChunk);
+                }
+                if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                if (i % (sampleBlockSize * 100) === 0) {
+                    onProgress(Math.round((i / leftInt16.length) * 100));
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+            return new Blob(mp3Data, { type: 'audio/mp3' });
         }
     </script>
 </body>
