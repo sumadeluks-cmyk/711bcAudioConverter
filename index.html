@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>711bc Audio Converter | Stable Hi-Fi</title>
+    <title>711bc Audio Converter</title>
     
     <script src="https://unpkg.com/wavesurfer.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
@@ -99,7 +99,7 @@
         <div class="header">
             <h1>711bc Audio Converter</h1>
             <p class="info-text">
-                <b>Stable 320kbps Edition</b>. Jernih & Anti-Error untuk <b>Sevenelefen Beach Club</b>.
+                Konversi audio untuk aset <b>Sevenelefen Beach Club</b>. Kecepatan default diatur pada 2.30x.
             </p>
             <a href="https://discord.gg/agYYe2rtMt" target="_blank" class="discord-link">
                 discord.gg/agYYe2rtMt
@@ -108,7 +108,7 @@
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <h3 style="margin:0; color:#f8fafc;">Pilih File Audio</h3>
-            <p style="margin:8px 0 0; color:#64748b;">Klik untuk konversi jernih maksimal (MP3 Studio Quality)</p>
+            <p style="margin:8px 0 0; color:#64748b;">Klik untuk memproses file audio</p>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
         </div>
 
@@ -118,7 +118,7 @@
 
             <div class="controls-grid">
                 <div class="control-item">
-                    <label>Bypass Speed (Chipmunk) <span id="valSpeed">2.30x</span></label>
+                    <label>Bypass Speed <span id="valSpeed">2.30x</span></label>
                     <input type="range" id="ctrlSpeed" min="0.5" max="3.0" step="0.01" value="2.3">
                 </div>
                 <div class="control-item">
@@ -130,7 +130,7 @@
             <div class="action-buttons">
                 <button class="btn btn-reset" onclick="location.reload()">🔄 Reset / Baru</button>
                 <button id="btnPlay" class="btn btn-play">▶ Play Preview</button>
-                <button id="btnExport" class="btn btn-export">⬇ Convert Jernih</button>
+                <button id="btnExport" class="btn btn-export">⬇ Konversi Audio</button>
             </div>
             <div id="statusMsg"></div>
         </div>
@@ -181,7 +181,7 @@
             if (!currentFile) return;
             btnExport.disabled = true;
             statusMsg.style.color = '#60a5fa';
-            statusMsg.innerText = "⏳ Sedang memproses audio jernih... (320kbps)";
+            statusMsg.innerText = "⏳ Sedang memproses audio...";
 
             try {
                 const speed = parseFloat(ctrlSpeed.value);
@@ -205,27 +205,25 @@
                 const renderedBuffer = await offlineCtx.startRendering();
                 audioCtx.close();
 
-                // Encode ke MP3 320kbps (Kualitas Studio)
                 const mp3Blob = await encodeAudioBufferToMp3Async(renderedBuffer, (percent) => {
-                    statusMsg.innerText = `📦 Mengompres Kualitas Studio... ${percent}%`;
+                    statusMsg.innerText = `📦 Mengompres audio... ${percent}%`;
                 });
                 
                 const finalName = "711bc_" + shortenName(currentFile.name) + ".mp3";
                 const url = URL.createObjectURL(mp3Blob);
                 const a = document.createElement('a'); a.href = url; a.download = finalName; a.click();
                 
-                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai! Hasil Jernih Maksimal.";
+                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai";
 
             } catch (err) {
                 console.error(err);
-                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Terjadi kesalahan memori.";
+                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Kesalahan sistem.";
             } finally { btnExport.disabled = false; }
         });
 
         async function encodeAudioBufferToMp3Async(buffer, onProgress) {
             const channels = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
-            // SET 320KBPS UNTUK KUATLITAS TERBAIK
             const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 320);
             const mp3Data = [];
             const sampleBlockSize = 1152;
