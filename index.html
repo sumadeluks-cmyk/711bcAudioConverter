@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>711bc Audio Converter | OGG Opus</title>
+    <title>711bc Audio Converter | Stable Hi-Fi</title>
     
-    <!-- Library untuk Visualisasi & Encoder OGG Opus -->
     <script src="https://unpkg.com/wavesurfer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ogg-opus-recorder@0.4.0/dist/recorder.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     
     <style>
         :root {
@@ -100,7 +99,7 @@
         <div class="header">
             <h1>711bc Audio Converter</h1>
             <p class="info-text">
-                <b>OGG Opus Edition</b>. Jernih & Ringan (Mobile Friendly) untuk <b>Sevenelefen Beach Club</b>.
+                <b>Stable 320kbps Edition</b>. Jernih & Anti-Error untuk <b>Sevenelefen Beach Club</b>.
             </p>
             <a href="https://discord.gg/agYYe2rtMt" target="_blank" class="discord-link">
                 discord.gg/agYYe2rtMt
@@ -109,7 +108,7 @@
 
         <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <h3 style="margin:0; color:#f8fafc;">Pilih File Audio</h3>
-            <p style="margin:8px 0 0; color:#64748b;">Klik untuk konversi ke OGG Opus (Kecil tapi Jernih)</p>
+            <p style="margin:8px 0 0; color:#64748b;">Klik untuk konversi jernih maksimal (MP3 Studio Quality)</p>
             <input type="file" id="fileInput" accept="audio/*" style="display: none;">
         </div>
 
@@ -131,7 +130,7 @@
             <div class="action-buttons">
                 <button class="btn btn-reset" onclick="location.reload()">🔄 Reset / Baru</button>
                 <button id="btnPlay" class="btn btn-play">▶ Play Preview</button>
-                <button id="btnExport" class="btn btn-export">⬇ Convert ke OGG</button>
+                <button id="btnExport" class="btn btn-export">⬇ Convert Jernih</button>
             </div>
             <div id="statusMsg"></div>
         </div>
@@ -174,7 +173,7 @@
 
         function shortenName(name) {
             let base = name.replace(/\.[^/.]+$/, "").toLowerCase();
-            let short = base.replace(/[aeiou\s]/g, ""); //
+            let short = base.replace(/[aeiou\s]/g, ""); 
             return short || "audio";
         }
 
@@ -182,7 +181,7 @@
             if (!currentFile) return;
             btnExport.disabled = true;
             statusMsg.style.color = '#60a5fa';
-            statusMsg.innerText = "⏳ Sedang memproses OGG Opus... (Jangan tutup halaman)";
+            statusMsg.innerText = "⏳ Sedang memproses audio jernih... (320kbps)";
 
             try {
                 const speed = parseFloat(ctrlSpeed.value);
@@ -206,23 +205,64 @@
                 const renderedBuffer = await offlineCtx.startRendering();
                 audioCtx.close();
 
-                // Encode ke OGG Opus menggunakan Recorder Library yang stabil
-                const recorder = new Recorder(offlineCtx.sampleRate);
-                recorder.record(renderedBuffer);
-                
-                recorder.exportOGG((blob) => {
-                    const finalName = "711bc_" + shortenName(currentFile.name) + ".ogg";
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = finalName; a.click();
-                    
-                    statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai! File kecil & jernih.";
+                // Encode ke MP3 320kbps (Kualitas Studio)
+                const mp3Blob = await encodeAudioBufferToMp3Async(renderedBuffer, (percent) => {
+                    statusMsg.innerText = `📦 Mengompres Kualitas Studio... ${percent}%`;
                 });
+                
+                const finalName = "711bc_" + shortenName(currentFile.name) + ".mp3";
+                const url = URL.createObjectURL(mp3Blob);
+                const a = document.createElement('a'); a.href = url; a.download = finalName; a.click();
+                
+                statusMsg.style.color = '#34d399'; statusMsg.innerText = "✅ Selesai! Hasil Jernih Maksimal.";
 
             } catch (err) {
                 console.error(err);
-                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Gagal memproses OGG.";
+                statusMsg.style.color = '#f87171'; statusMsg.innerText = "❌ Terjadi kesalahan memori.";
             } finally { btnExport.disabled = false; }
         });
+
+        async function encodeAudioBufferToMp3Async(buffer, onProgress) {
+            const channels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            // SET 320KBPS UNTUK KUATLITAS TERBAIK
+            const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 320);
+            const mp3Data = [];
+            const sampleBlockSize = 1152;
+            const leftData = buffer.getChannelData(0);
+            const rightData = channels === 2 ? buffer.getChannelData(1) : leftData;
+            const leftInt16 = new Int16Array(leftData.length);
+            const rightInt16 = new Int16Array(rightData.length);
+
+            for (let i = 0; i < leftData.length; i++) {
+                let l = Math.max(-1, Math.min(1, leftData[i]));
+                leftInt16[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
+                if(channels === 2) {
+                    let r = Math.max(-1, Math.min(1, rightData[i]));
+                    rightInt16[i] = r < 0 ? r * 0x8000 : r * 0x7FFF;
+                }
+                if (i % 1000000 === 0) await new Promise(r => setTimeout(r, 0));
+            }
+
+            for (let i = 0; i < leftInt16.length; i += sampleBlockSize) {
+                const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                let mp3buf;
+                if (channels === 2) {
+                    const rightChunk = rightInt16.subarray(i, i + sampleBlockSize);
+                    mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                } else {
+                    mp3buf = mp3encoder.encodeBuffer(leftChunk);
+                }
+                if (mp3buf.length > 0) mp3Data.push(mp3buf);
+                if (i % (sampleBlockSize * 100) === 0) {
+                    onProgress(Math.round((i / leftInt16.length) * 100));
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+            return new Blob(mp3Data, { type: 'audio/mp3' });
+        }
     </script>
 </body>
 </html>
