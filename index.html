@@ -147,6 +147,22 @@
         const btnPlay = document.getElementById('btnPlay');
         const btnExport = document.getElementById('btnExport');
 
+        // ==========================================
+        // FITUR BARU: Update teks slider secara real-time
+        // ==========================================
+        ctrlSpeed.addEventListener('input', function() {
+            document.getElementById('valSpeed').innerText = parseFloat(this.value).toFixed(2) + 'x';
+            if (wavesurfer) {
+                // Update kecepatan preview jika slider digeser
+                wavesurfer.setPlaybackRate(parseFloat(this.value));
+            }
+        });
+
+        ctrlVol.addEventListener('input', function() {
+            document.getElementById('valVol').innerText = this.value + ' dB';
+        });
+        // ==========================================
+
         wavesurfer = WaveSurfer.create({
             container: '#waveform', waveColor: '#475569', progressColor: '#8b5cf6',
             cursorColor: '#f8fafc', barWidth: 2, height: 80, responsive: true
@@ -161,7 +177,8 @@
             document.getElementById('editorArea').style.display = 'block';
             wavesurfer.loadBlob(file);
             wavesurfer.on('ready', () => {
-                wavesurfer.setPlaybackRate(2.3);
+                // Set initial speed based on slider value
+                wavesurfer.setPlaybackRate(parseFloat(ctrlSpeed.value));
                 wavesurfer.getMediaElement().preservesPitch = false;
             });
         });
